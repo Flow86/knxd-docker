@@ -30,10 +30,6 @@ RUN apt-get update \
  && apt-get autoclean -y \
  && apt-get autoremove
 
-RUN curl -o /usr/local/bin/gosu -sSL "https://github.com/tianon/gosu/releases/download/1.12/gosu-amd64" && \
-	echo "0f25a21cf64e58078057adc78f38705163c1d564a959ff30a891c31917011a54 /usr/local/bin/gosu" | sha256sum -c && \
-	chmod +x /usr/local/bin/gosu
-
 # and get the source code
 WORKDIR /root
 RUN git clone https://github.com/knxd/knxd.git --single-branch --branch debian
@@ -53,7 +49,9 @@ WORKDIR /root
 RUN dpkg -i knxd_*.deb knxd-tools_*.deb
 
 # clean up
-RUN rm /root/*.deb && \
+RUN rm /root/*-dev_*.deb && \
+  rm /root/*-dbg_*.deb && \
+  rm /root/*-compat_*.deb && \
   rm /root/*.changes && \
   rm /root/*.tar.gz && \
   rm -rf /root/knxd && \
@@ -62,6 +60,27 @@ RUN rm /root/*.deb && \
   rm -rf /var/cache/debconf/*-old && \
   rm -rf /var/lib/apt/lists/* && \
   rm -rf /usr/share/doc/*
+
+RUN ls /root/*.deb
+
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /root
+
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && apt-get install -y \
+      curl \
+	  libusb-1.0-0 \
+	  libev4
+
+RUN curl -o /usr/local/bin/gosu -sSL "https://github.com/tianon/gosu/releases/download/1.12/gosu-amd64" && \
+	echo "0f25a21cf64e58078057adc78f38705163c1d564a959ff30a891c31917011a54 /usr/local/bin/gosu" | sha256sum -c && \
+	chmod +x /usr/local/bin/gosu
+
+COPY --from=0 /root/*.deb /root/
+RUN dpkg -i *.deb \
+	&& rm /root/*.deb
 
 ADD config.ini /config.ini
 
